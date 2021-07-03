@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression  
 from sklearn.metrics import mean_squared_error
 import statsmodels.api as smf 
+from pandas import get_dummies
 
 # read dataset
 data = read_csv("housing.csv")
@@ -75,6 +76,7 @@ proximity_groups = data.groupby("ocean_proximity").size()
 
 # remove island houses and create dummy variable
 data = data[data["ocean_proximity"] != 'ISLAND']
+proximity = data["ocean_proximity"]
 labelencoder_x= LabelEncoder() 
 data["ocean_proximity"]= labelencoder_x.fit_transform(data["ocean_proximity"]) 
 
@@ -84,7 +86,11 @@ data['rooms per person'] = data['total_rooms']/data['population']
 # family sizes could be a strong indicator
 data['family size'] = data['population']/data['households']
 
+# bedrooms per population could be a strong indicator
+data['bedrooms per population'] = data['total_bedrooms']/data['population']
 
+# bedrooms per room could be an indicator
+data['rooms per bedroom'] = data['total_rooms']/data['total_bedrooms']
 
 # explorative data analysis
 corrMat = data.corr()
@@ -106,15 +112,20 @@ for i in range(len(data.columns)):
                        var_corr.append((data.columns[i],data.columns[j]))
                        
 # 'latitude' 'housing_median_age' 'total_rooms' 'median_income' 'rooms per person'
-# correlated with 'median_house_value' and not other variables
-
-data = data[["latitude",'housing_median_age','total_rooms','median_income',
-             'median_house_value','rooms per person']]
+# rooms per bedromm correlated with 'median_house_value' and not other variables
 
 sns.pairplot(data)
 plt.show()
 
+# prpepare data for analysis
+dummy = get_dummies(proximity) 
 data['intercept'] = np.ones((20428,1))
+data["INLAND"] = dummy["INLAND"]
+data["NEAR BAY"] = dummy["NEAR BAY"]
+data["NEAR OCEAN"] = dummy["NEAR OCEAN"]
+del dummy
+del data["ocean_proximity"]
+del proximity
 
 # maybe signs of polynomial regression needed 
 # try linear first and build from there 
@@ -133,17 +144,61 @@ test_results = []
 mu = np.mean(y)
 train_results.append(("average model",np.sqrt(mean_squared_error(np.ones((len(y_train),1))*mu,y_train))))
 test_results.append(("average model",np.sqrt(mean_squared_error(np.ones((len(y_test),1))*mu,y_test))))
-mu
-# simple linear regression
+
+
+# linear regression with all variables
 regressor_1= LinearRegression()  
 regressor_1.fit(x_train, y_train)
 y_train_pred = regressor_1.predict(x_train)
 y_test_pred = regressor_1.predict(x_test)
-train_results.append(("1st model",np.sqrt(mean_squared_error(y_train_pred,y_train))))
-test_results.append(("1st model",np.sqrt(mean_squared_error(y_test_pred,y_test))))
+train_results.append(("lm all variables",np.sqrt(mean_squared_error(y_train_pred,y_train))))
+test_results.append(("lm all variables",np.sqrt(mean_squared_error(y_test_pred,y_test))))
 
-# remove insignificant variables
-regressor_OLS=smf.OLS(endog = y_train, exog=x_train).fit()  
-regressor_OLS.summary() # all variables are significant
+# linear regression with correlatted variables
+regressor_2= LinearRegression()  
+regressor_2.fit(x_train[["latitude",'housing_median_age','total_rooms',
+                         'median_income','rooms per person','rooms per bedroom']],
+                y_train)
+y_train_pred = regressor_2.predict(x_train[["latitude",'housing_median_age',
+                                            'total_rooms','median_income',
+                                            'rooms per person','rooms per bedroom']])
+y_test_pred = regressor_2.predict(x_test[["latitude",'housing_median_age',
+                                            'total_rooms','median_income',
+                                            'rooms per person','rooms per bedroom']])
+train_results.append(("lm corr variables",np.sqrt(mean_squared_error(y_train_pred,y_train))))
+test_results.append(("lm corr variables",np.sqrt(mean_squared_error(y_test_pred,y_test))))
+
+# linear rregression by remoing insignificant variables
+x_signif = x_train[:]
+regressor_OLS=smf.OLS(endog = y_train, exog=x_signif).fit()  
+regressor_OLS.summary() # remove total rooms
+del x_signif['total_rooms']
 
 
+regressor_OLS=smf.OLS(endog = y_train, exog=x_signif).fit()  
+regressor_OLS.summary() # remove total_bedrooms
+del x_signif['total_bedrooms']
+
+regressor_OLS=smf.OLS(endog = y_train, exog=x_signif).fit()  
+regressor_OLS.summary() # remove family size
+del x_signif['family size']
+
+regressor_OLS=smf.OLS(endog = y_train, exog=x_signif).fit()  
+regressor_OLS.summary() # remove NEAR BAY
+del x_signif['NEAR BAY'] 
+
+regressor_OLS=smf.OLS(endog = y_train, exog=x_signif).fit()  
+regressor_OLS.summary() # all values significant
+
+regressor_3= LinearRegression()  
+regressor_3.fit(x_train.drop(['NEAR BAY','family size',
+                              'total_bedrooms','total_rooms'], axis =1),y_train)
+y_train_pred = regressor_3.predict(x_train.drop(['NEAR BAY','family size',
+                                                 'total_bedrooms','total_rooms'], axis =1))
+y_test_pred = regressor_3.predict(x_test.drop(['NEAR BAY','family size',
+                                               'total_bedrooms','total_rooms'], axis = 1))
+train_results.append(("lm smf variables",np.sqrt(mean_squared_error(y_train_pred,y_train))))
+test_results.append(("lm smf variables",np.sqrt(mean_squared_error(y_test_pred,y_test))))
+
+# lots of variables are correlated with each other
+# look into interaction terms
