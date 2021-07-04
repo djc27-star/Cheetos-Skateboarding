@@ -10,6 +10,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import statsmodels.api as smf 
 from pandas import get_dummies
+from sklearn.preprocessing import PolynomialFeatures  
 
 # read dataset
 data = read_csv("housing.csv")
@@ -26,48 +27,66 @@ col = data.columns
 data['median_house_value'].dtypes # dtype('float64')
 for i in data['median_house_value']:
     assert i > 0 # all values are greater than 0
+data['median_house_value'].plot(kind='box')
+plt.show()
 
 # longitude
 # range -125 - -114 via google maps
 data['longitude'].dtypes # dtype('float64')
 for i in data['longitude']:
     assert -125 <= i <= -114 # all values in range
+data['longitude'].plot(kind='box')
+plt.show()
 
 # 'latitude'
 # range 32 - 43
 data['latitude'].dtypes # dtype('float64')
 for i in data['latitude']:
     assert 32 <= i <= 43 # all values in range
+data['latitude'].plot(kind='box')
+plt.show()
 
 # 'housing_median_age'
 data['housing_median_age'].dtypes # dtype('float64')
 for i in data['housing_median_age']:
     assert i > 0 & isinstance(i,int) # all values are greater than 0
-    
+data['housing_median_age'].plot(kind='box')
+plt.show()
+   
 # 'total_rooms'
 data['total_rooms'].dtypes # dtype('float64')
 for i in data['total_rooms']:
     assert i > 0 & isinstance(i,int) # all values are greater than 0
+data['total_rooms'].plot(kind='box')
+plt.show()
     
 # 'total_bedrooms'
 data['total_bedrooms'].dtypes # dtype('float64')
 for i in data['total_bedrooms']:
     assert i > 0 & isinstance(i,int) # all values are greater than 0
-    
+data['total_bedrooms'].plot(kind='box')
+plt.show()
+  
 # 'population'
 data['population'].dtypes # dtype('float64')
 for i in data['population']:
     assert i > 0 & isinstance(i,int)
-    
+data['population'].plot(kind='box')
+plt.show()
+   
 # 'households'
 data['households'].dtypes # dtype('float64')
 for i in data['households']:
     assert i > 0 & isinstance(i,int)
+data['households'].plot(kind='box')
+plt.show()
     
 # 'median_income'
 data['median_income'].dtypes # dtype('float64')
 for i in data['median_income']:
     assert i > 0 
+data['median_income'].plot(kind='box')
+plt.show()
     
 # "ocean_proximity"
 data["ocean_proximity"].dtypes #  dtype('O')
@@ -202,3 +221,30 @@ test_results.append(("lm smf variables",np.sqrt(mean_squared_error(y_test_pred,y
 
 # lots of variables are correlated with each other
 # look into interaction terms
+
+# check different orders of polynomials to find optimal 1
+
+# 2nd order polynomial
+poly_2nd= PolynomialFeatures(degree= 2) 
+poly_2nd_train = poly_2nd.fit_transform(x_train)
+poly_2nd_test = poly_2nd.fit_transform(x_test)
+regressor_4= LinearRegression()  
+regressor_4.fit(poly_2nd_train, y_train)
+y_train_pred = regressor_4.predict(poly_2nd_train)
+y_test_pred = regressor_4.predict(poly_2nd_test)
+train_results.append(("poly 2nd",np.sqrt(mean_squared_error(y_train_pred,y_train))))
+test_results.append(("poly 2nd",np.sqrt(mean_squared_error(y_test_pred,y_test))))
+
+# 3rd order polynomial
+poly_3rd= PolynomialFeatures(degree= 3) 
+poly_3rd_train = poly_3rd.fit_transform(x_train)
+poly_3rd_test = poly_3rd.fit_transform(x_test)
+regressor_5= LinearRegression()  
+regressor_5.fit(poly_3rd_train, y_train)
+y_train_pred = regressor_5.predict(poly_3rd_train)
+y_test_pred = regressor_5.predict(poly_3rd_test)
+train_results.append(("poly 3rd",np.sqrt(mean_squared_error(y_train_pred,y_train))))
+test_results.append(("poly 3rd",np.sqrt(mean_squared_error(y_test_pred,y_test))))
+
+# 3rd order polynomial is overfitted
+# 2nd order polynomial is overfitted
