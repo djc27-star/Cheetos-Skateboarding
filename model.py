@@ -13,6 +13,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression
 import statsmodels.api as smf 
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
 
 # read dataset
 data = read_csv("housing.csv")
@@ -192,6 +195,7 @@ plt.show()
 
 # create dummy variables for ocean_proximity
 dummy = get_dummies(data["ocean_proximity"]) 
+dummy = dummy.reset_index()
 del data["ocean_proximity"]
 
 # standardise data
@@ -202,12 +206,12 @@ data = DataFrame(data,columns = names)
 
 # add dummy variables and intercept
 data['intercept'] = np.ones((20433,1))
-'''data["INLAND"] = dummy["INLAND"]
+data["INLAND"] = dummy["INLAND"]
 data["NEAR BAY"] = dummy["NEAR BAY"]
 data["NEAR OCEAN"] = dummy["NEAR OCEAN"]
 data["<1H OCEAN"] = dummy["<1H OCEAN"]
 data["ISLAND"] = dummy["ISLAND"]
-del dummy'''
+del dummy
 
 # seperate data into target and explanatory variables
 x = data.drop('median_house_value',axis = 1)
@@ -248,14 +252,29 @@ del X_train2['total_rooms']
 del X_test2['total_rooms']
 
 regressor_OLS=smf.OLS(endog = Y_train, exog=X_train2).fit()  
-regressor_OLS.summary() # intercept
-del X_train2['intercept']
-del X_test2['intercept']
+regressor_OLS.summary() # NEAR OCEAN 
+del X_train2['NEAR OCEAN']
+del X_test2['NEAR OCEAN']
 
 regressor_OLS=smf.OLS(endog = Y_train, exog=X_train2).fit()  
 regressor_OLS.summary() # family size
 del X_train2['family size']
 del X_test2['family size']
+
+regressor_OLS=smf.OLS(endog = Y_train, exog=X_train2).fit()  
+regressor_OLS.summary() # rooms per person
+del X_train2['rooms per person']
+del X_test2['rooms per person']
+
+regressor_OLS=smf.OLS(endog = Y_train, exog=X_train2).fit()  
+regressor_OLS.summary() # total bedrooms
+del X_train2['total_bedrooms']
+del X_test2['total_bedrooms']
+
+regressor_OLS=smf.OLS(endog = Y_train, exog=X_train2).fit()  
+regressor_OLS.summary() # rooms per bedroom 
+del X_train2['rooms per bedroom']
+del X_test2['rooms per bedroom']
 
 regressor_OLS=smf.OLS(endog = Y_train, exog=X_train2).fit()  
 regressor_OLS.summary() # all variables significant
@@ -265,3 +284,63 @@ regressor_3.fit(X_train2, Y_train)
 y_test_pred = regressor_3.predict(X_test2)
 test_results.append(("lm significant variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
 
+# try a ridge model to deal with multicollinarity
+regressor_4 = Ridge()
+regressor_4.fit(X_train,Y_train)
+y_test_pred = regressor_4.predict(X_test)
+test_results.append(("Ridge",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+
+# optimise alpha
+rs = {'alpha': [25,10,4,2,1.0,0.8,0.5,0.3,0.2,0.1,0.05,0.02,0.01]}
+grid = GridSearchCV(estimator = Ridge(), param_grid = rs,
+                    cv =10,scoring = 'neg_mean_squared_error')
+grid.fit(X_train,Y_train)
+grid.best_params_
+regressor_5 = Ridge(alpha = 0.5)
+regressor_5.fit(X_train,Y_train)
+y_test_pred = regressor_5.predict(X_test)
+test_results.append(("Ridge optimised",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+
+# try random forest
+regressor_6 = RandomForestRegressor()
+regressor_6.fit(X_train,Y_train)
+y_test_pred = regressor_6.predict(X_test)
+test_results.append(("rf",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+
+# remove features by feature importance
+plt.bar(X_train.columns,regressor_6.feature_importances_)
+plt.xticks(rotation=90)
+plt.show()
+
+variable_importance = [(X_train.columns[list(regressor_6.feature_importances_).index(i)],i) for i in 
+sorted(regressor_6.feature_importances_, reverse = True)]
+
+sorted_importances = [x[1] for x in variable_importance]
+sorted_features = [x[0] for x in variable_importance]
+cumulative_importances = np.cumsum(sorted_importances)
+plt.plot(sorted_features, cumulative_importances, 'g-')
+plt.hlines(y = 0.95, xmin=0, xmax=len(sorted_importances), color = 'r',
+           linestyles = 'dashed')
+plt.xticks(rotation = 90)
+plt.xlabel('Variable'); plt.ylabel('Cumulative Importance')
+plt.title('Cumulative Importances')
+plt.show()
+
+# try model with strongest variables
+X_train3 = X_train[sorted_features[0:13]]
+X_test3 = X_test[sorted_features[0:13]]
+regressor_7 = RandomForestRegressor()
+regressor_7.fit(X_train3,Y_train)
+y_test_pred = regressor_7.predict(X_test3)
+test_results.append(("rf strong variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+
+# not much information lost for a quicker model will now optimise
+'''rs = { "n_estimators"      : [100,300],
+            "max_features"      : ["auto", "sqrt", "log2"],
+            "min_samples_split" : [2,4,8],
+            "bootstrap": [True, False],
+            }
+grid = GridSearchCV(estimator = RandomForestRegressor(), param_grid = rs,
+                    cv =10,scoring = 'neg_mean_squared_error')
+grid.fit(X_train3,Y_train)
+grid.best_params_'''
