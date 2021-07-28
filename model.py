@@ -16,6 +16,7 @@ import statsmodels.api as smf
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 
 # read dataset
 data = read_csv("housing.csv")
@@ -335,12 +336,41 @@ y_test_pred = regressor_7.predict(X_test3)
 test_results.append(("rf strong variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
 
 # not much information lost for a quicker model will now optimise
-'''rs = { "n_estimators"      : [100,300],
-            "max_features"      : ["auto", "sqrt", "log2"],
-            "min_samples_split" : [2,4,8],
-            "bootstrap": [True, False],
+'''rs = {"n_estimators" : [100,300,500],
+            "min_samples_split" : [2,4,8],            
+            'max_depth': [2,4,6]
             }
 grid = GridSearchCV(estimator = RandomForestRegressor(), param_grid = rs,
-                    cv =10,scoring = 'neg_mean_squared_error')
+                    cv =3,scoring = 'neg_mean_squared_error')
 grid.fit(X_train3,Y_train)
 grid.best_params_'''
+
+regressor_8 = RandomForestRegressor(max_depth = 6, min_samples_split =2,
+                                    n_estimators = 500)
+regressor_8.fit(X_train3,Y_train)
+y_test_pred = regressor_8.predict(X_test3)
+test_results.append(("rf optimise",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+
+
+# #try boosting
+regressor_9 = GradientBoostingRegressor()
+regressor_9.fit(X_train3,Y_train)
+y_test_pred = regressor_9.predict(X_test3)
+test_results.append(("gradient boosting",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+
+# optimise model
+'''rs = {"n_estimators" : [100,300,500],
+      "max_depth" : [2,4,6],
+      "learning_rate" : [0.01,0.1,1]
+            }
+grid = GridSearchCV(estimator = GradientBoostingRegressor(), param_grid = rs,
+                    cv =3,scoring = 'neg_mean_squared_error')
+grid.fit(X_train3,Y_train)
+grid.best_params_'''
+
+# #try boosting
+regressor_10 = GradientBoostingRegressor(n_estimators=500, max_depth = 6,
+                                        learning_rate = 0.1)
+regressor_10.fit(X_train3,Y_train)
+y_test_pred = regressor_10.predict(X_test3)
+test_results.append(("gradient boosting optimise",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
