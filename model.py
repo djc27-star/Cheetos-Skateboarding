@@ -17,6 +17,7 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.metrics import r2_score
 
 # read dataset
 data = read_csv("housing.csv")
@@ -228,7 +229,8 @@ test_results = []
 # average model
 mu = np.mean(Y_train)
 test_results.append(("average model",np.sqrt(mean_squared_error(np.ones((len(Y_test),
-                                                                    1))*mu,Y_test))))
+                                                                    1))*mu,Y_test)),
+                     r2_score(np.ones((len(Y_test),1))*mu,Y_test)))
 
 # linear regression with given variables
 regressor_1= LinearRegression()  
@@ -236,13 +238,15 @@ regressor_1.fit(X_train[['housing_median_age', 'total_rooms', 'total_bedrooms',
                         'population','households', 'median_income']], Y_train)
 y_test_pred = regressor_1.predict(X_test[['housing_median_age', 'total_rooms',
                 'total_bedrooms', 'population','households', 'median_income']])
-test_results.append(("lm given variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("lm given variables",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # linear regression with all variables
 regressor_2= LinearRegression()  
 regressor_2.fit(X_train, Y_train)
 y_test_pred = regressor_2.predict(X_test)
-test_results.append(("lm all variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("lm all variables",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # linear regression by removing insignificant variables
 X_train2 = X_train[:]
@@ -283,30 +287,34 @@ regressor_OLS.summary() # all variables significant
 regressor_3= LinearRegression()  
 regressor_3.fit(X_train2, Y_train)
 y_test_pred = regressor_3.predict(X_test2)
-test_results.append(("lm significant variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("lm significant variables",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # try a ridge model to deal with multicollinarity
 regressor_4 = Ridge()
 regressor_4.fit(X_train,Y_train)
 y_test_pred = regressor_4.predict(X_test)
-test_results.append(("Ridge",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("Ridge",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # optimise alpha
-rs = {'alpha': [25,10,4,2,1.0,0.8,0.5,0.3,0.2,0.1,0.05,0.02,0.01]}
+'''rs = {'alpha': [25,10,4,2,1.0,0.8,0.5,0.3,0.2,0.1,0.05,0.02,0.01]}
 grid = GridSearchCV(estimator = Ridge(), param_grid = rs,
                     cv =10,scoring = 'neg_mean_squared_error')
 grid.fit(X_train,Y_train)
-grid.best_params_
+grid.best_params_'''
 regressor_5 = Ridge(alpha = 0.5)
 regressor_5.fit(X_train,Y_train)
 y_test_pred = regressor_5.predict(X_test)
-test_results.append(("Ridge optimised",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("Ridge optimised",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # try random forest
 regressor_6 = RandomForestRegressor()
 regressor_6.fit(X_train,Y_train)
 y_test_pred = regressor_6.predict(X_test)
-test_results.append(("rf",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("rf",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # remove features by feature importance
 plt.bar(X_train.columns,regressor_6.feature_importances_)
@@ -326,6 +334,7 @@ plt.xticks(rotation = 90)
 plt.xlabel('Variable'); plt.ylabel('Cumulative Importance')
 plt.title('Cumulative Importances')
 plt.show()
+# 13 strongest features are significant
 
 # try model with strongest variables
 X_train3 = X_train[sorted_features[0:13]]
@@ -333,7 +342,8 @@ X_test3 = X_test[sorted_features[0:13]]
 regressor_7 = RandomForestRegressor()
 regressor_7.fit(X_train3,Y_train)
 y_test_pred = regressor_7.predict(X_test3)
-test_results.append(("rf strong variables",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("rf strong variables",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # not much information lost for a quicker model will now optimise
 '''rs = {"n_estimators" : [100,300,500],
@@ -349,14 +359,16 @@ regressor_8 = RandomForestRegressor(max_depth = 6, min_samples_split =2,
                                     n_estimators = 500)
 regressor_8.fit(X_train3,Y_train)
 y_test_pred = regressor_8.predict(X_test3)
-test_results.append(("rf optimise",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("rf optimise",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 
 # #try boosting
 regressor_9 = GradientBoostingRegressor()
 regressor_9.fit(X_train3,Y_train)
 y_test_pred = regressor_9.predict(X_test3)
-test_results.append(("gradient boosting",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("gradient boosting",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
 
 # optimise model
 '''rs = {"n_estimators" : [100,300,500],
@@ -373,4 +385,7 @@ regressor_10 = GradientBoostingRegressor(n_estimators=500, max_depth = 6,
                                         learning_rate = 0.1)
 regressor_10.fit(X_train3,Y_train)
 y_test_pred = regressor_10.predict(X_test3)
-test_results.append(("gradient boosting optimise",np.sqrt(mean_squared_error(y_test_pred,Y_test))))
+test_results.append(("gradient boosting optimise",np.sqrt(mean_squared_error(y_test_pred,Y_test)),
+                     r2_score(y_test_pred,Y_test)))
+
+# gradient boosting regressor with optimised variables is the strongest model
